@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>My Camera Link</title>
+
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            background: #000000;
+            color: rgb(30, 255, 0);
+            padding: 30px;
+        }
+
+        button {
+            padding: 12px 25px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        video {
+            width: 90%;
+            max-width: 700px;
+            background: black;
+            margin-top: 20px;
+        }
+
+        #linkBox {
+            margin-top: 20px;
+            padding: 15px;
+            background: #222;
+            word-break: break-all;
+        }
+
+        #phoneMode {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>My create Link</h1>
+
+    <!-- PC MODE -->
+    <div id="pcMode">
+
+        <h2>PC MODE</h2>
+
+        <button onclick="createRoom()">
+            Create Link
+        </button>
+
+        <div id="linkBox"></div>
+
+        <video id="remoteVideo" autoplay playsinline></video>
+
+    </div>
+
+
+    <!-- PHONE MODE -->
+    <div id="phoneMode">
+
+        <h2>PHONE MODE</h2>
+
+        <p> চালু করতে নিচের বাটনে চাপ দাও।</p>
+
+        <button onclick="startCamera()">
+            Allow 
+        </button>
+
+        <br>
+
+        <video id="localVideo" autoplay playsinline muted></video>
+
+    </div>
+
+
+<script>
+
+let peer;
+
+
+// ==========================
+// PC MODE
+// ==========================
+
+function createRoom() {
+
+    peer = new Peer();
+
+    peer.on("open", function(id) {
+
+        const link =
+            window.location.href.split("?")[0]
+            + "?phone="
+            + id;
+
+        document.getElementById("linkBox").innerHTML =
+            "<p>এই Link-টি তোমার ২য় ফোনে খুলো:</p>" +
+            "<input value='" + link + "' style='width:90%;padding:10px' readonly>" +
+            "<br><button onclick=\"copyLink('" + link + "')\">Copy Link</button>";
+
+    });
+
+
+    peer.on("call", function(call) {
+
+        // Phone থেকে আসা video গ্রহণ
+        call.answer();
+
+        call.on("stream", function(stream) {
+
+            document.getElementById("remoteVideo").srcObject = stream;
+
+        });
+
+    });
+
+}
+
+
+// ==========================
+// COPY LINK
+// ==========================
+
+function copyLink(link) {
+
+    navigator.clipboard.writeText(link);
+
+    alert("Link copied!");
+
+}
+
+
+// ==========================
+// PHONE MODE
+// ==========================
+
+async function startPhone() {
+
+    const params = new URLSearchParams(window.location.search);
+
+    const pcId = params.get("phone");
+
+    if (!pcId) {
+
+        alert("PC-এর Link দিয়ে এই page খুলতে হবে।");
+
+        return;
+    }
+
+
+    peer = new Peer();
+
+
+    peer.on("open", async function() {
+
+        try {
+
+            const stream =
+                await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+
+
+            document.getElementById("localVideo").srcObject = stream;
+
+
+            const call = peer.call(pcId, stream);
+
+
+            call.on("close", function() {
+
+                stream.getTracks().forEach(track => track.stop());
+
+            });
+
+        }
+
+        catch(error) {
+
+            alert(
+                "Camera permission দেওয়া হয়নি অথবা Camera পাওয়া যায়নি."
+            );
+
+        }
+
+    });
+
+}
+
+
+// ==========================
+// PAGE LOAD
+// ==========================
+
+window.onload = function() {
+
+    const params =
+        new URLSearchParams(window.location.search);
+
+
+    if (params.get("phone")) {
+
+        document.getElementById("pcMode").style.display = "none";
+
+        document.getElementById("phoneMode").style.display = "block";
+
+    }
+
+};
+
+</script>
+
+</body>
+</html>
